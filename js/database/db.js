@@ -2,14 +2,14 @@
 import { openDB } from "idb";
 
 const DB_NAME = "expense-tracker-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise;
 
 export function getDB() {
   if (!dbPromise) {
     dbPromise = openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
         if (!db.objectStoreNames.contains("expenses")) {
           const store = db.createObjectStore("expenses", {
             keyPath: "id"
@@ -19,6 +19,13 @@ export function getDB() {
           store.createIndex("location", "location");
           store.createIndex("category", "category");
           store.createIndex("createdAt", "createdAt");
+        }
+
+        if (!db.objectStoreNames.contains("budgets")) {
+          const budgetStore = db.createObjectStore("budgets", {
+            keyPath: "month"
+          });
+          budgetStore.createIndex("updatedAt", "updatedAt");
         }
       }
     });
@@ -56,6 +63,7 @@ export async function clearExpenses() {
   const db = await getDB();
   return db.clear("expenses");
 }
+
 export async function mergeExpenses(records) {
   const db = await getDB();
   const tx = db.transaction("expenses", "readwrite");
@@ -95,4 +103,31 @@ export async function replaceAllExpenses(records) {
   await tx.done;
 
   return { added: records.length, skipped: 0 };
+}
+
+/* ================= Budget Database Operations ================= */
+
+export async function getBudget(month) {
+  const db = await getDB();
+  return db.get("budgets", month);
+}
+
+export async function getAllBudgets() {
+  const db = await getDB();
+  return db.getAll("budgets");
+}
+
+export async function setBudget(budgetRecord) {
+  const db = await getDB();
+  return db.put("budgets", budgetRecord);
+}
+
+export async function removeBudget(month) {
+  const db = await getDB();
+  return db.delete("budgets", month);
+}
+
+export async function clearBudgets() {
+  const db = await getDB();
+  return db.clear("budgets");
 }

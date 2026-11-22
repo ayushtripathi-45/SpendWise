@@ -3,14 +3,10 @@ const navigationItems = [
   { id: "dashboard", label: "Dashboard", icon: "layout-dashboard" },
   { id: "transactions", label: "Transactions", icon: "receipt" },
   { id: "analytics", label: "Analytics", icon: "chart-no-axes-combined" },
-  { id: "categories", label: "Categories", icon: "tags" },
   { id: "budgets", label: "Budgets", icon: "wallet" },
+  { id: "categories", label: "Categories", icon: "tags" },
   { id: "settings", label: "Settings", icon: "settings" },
-  {
-  id: "backup",
-  label: "Backup",
-  icon: "database"
-}
+  { id: "backup", label: "Backup", icon: "database" }
 ];
 
 function icon(name) {
@@ -76,14 +72,15 @@ export function renderSidebar(activePage = "dashboard") {
 
 export function renderMobileNav(activePage = "dashboard") {
   const mobileItems = [
-  navigationItems[0],
-  navigationItems[1],
-  navigationItems[2],
-  navigationItems[6]
-];
+    navigationItems[0], // Dashboard
+    navigationItems[1], // Transactions
+    navigationItems[3], // Budgets
+    navigationItems[2], // Analytics
+    navigationItems[5]  // Settings
+  ];
 
   return `
-    <nav class="mobile-nav" aria-label="Mobile navigation">
+    <nav class="mobile-nav" aria-label="Mobile navigation" style="grid-template-columns: repeat(5, 1fr);">
       ${mobileItems.map(item => navLink(item, activePage)).join("")}
     </nav>
   `;

@@ -2,6 +2,7 @@
 import Chart from "chart.js/auto";
 import { formatCurrency } from "../utils/currency.js";
 import { formatDate } from "../utils/date-utils.js";
+import { formatMonthLabel } from "../modules/analytics.js";
 
 const COLORS = {
   emerald: "#10B981",
@@ -90,7 +91,7 @@ const commonOptions = {
   }
 };
 
-export function renderDashboardPage(analytics, expenses) {
+export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
   const recent = expenses.slice(0, 5);
 
   const highestDay = analytics.dailyBreakdown.reduce(
@@ -98,15 +99,49 @@ export function renderDashboardPage(analytics, expenses) {
     { day: 0, amount: 0 }
   );
 
+  const hasBudget = Boolean(budgetStatus && budgetStatus.hasBudget);
+  const budgetAmount = budgetStatus?.budget || 0;
+  const remainingAmount = budgetStatus?.remaining;
+  const isOverBudget = Boolean(budgetStatus?.isOverBudget);
+  const budgetPct = budgetStatus?.percentage || 0;
+
   return `
+    <!-- Top 8 Summary Cards Grid (including Monthly Budget & Remaining Budget) -->
     <section class="dashboard-grid dashboard-grid-6">
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Overall Spending</span>
-          <div class="stat-icon">₹</div>
+          <span class="stat-label">Monthly Budget</span>
+          <div class="stat-icon budget-icon">🎯</div>
         </div>
-        <div class="stat-value" id="overall-spending">${formatCurrency(analytics.overallSpending)}</div>
-        <p class="stat-description">All-time expenses</p>
+        <div class="stat-value" id="dash-stat-budget">
+          ${hasBudget ? formatCurrency(budgetAmount) : "Not Set"}
+        </div>
+        <p class="stat-description">
+          ${hasBudget ? `Target for ${formatMonthLabel(analytics.selectedMonth)}` : '<a href="#" data-action="set-budget" style="color:var(--primary); font-weight:600;">+ Set Budget</a>'}
+        </p>
+      </article>
+
+      <article class="stat-card ${isOverBudget ? 'card-danger-highlight' : ''}">
+        <div class="stat-top">
+          <span class="stat-label">Remaining Budget</span>
+          <div class="stat-icon ${isOverBudget ? 'danger-icon' : 'safe-icon'}">
+            ${isOverBudget ? "⚠️" : "🛡️"}
+          </div>
+        </div>
+        <div class="stat-value ${isOverBudget ? 'amount-danger' : 'amount-safe'}" id="dash-stat-remaining">
+          ${hasBudget
+            ? (isOverBudget ? `- ${formatCurrency(Math.abs(remainingAmount))}` : formatCurrency(remainingAmount))
+            : "—"
+          }
+        </div>
+        <p class="stat-description ${isOverBudget ? 'text-danger' : ''}">
+          ${!hasBudget
+            ? "Set a budget to track savings"
+            : isOverBudget
+              ? `Over limit by ${formatCurrency(Math.abs(remainingAmount))}`
+              : `${formatCurrency(remainingAmount)} safe to spend`
+          }
+        </p>
       </article>
 
       <article class="stat-card">
@@ -129,11 +164,11 @@ export function renderDashboardPage(analytics, expenses) {
 
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Transactions</span>
-          <div class="stat-icon">≡</div>
+          <span class="stat-label">Overall Spending</span>
+          <div class="stat-icon">₹</div>
         </div>
-        <div class="stat-value" id="transaction-count">${analytics.allTimeTransactionCount}</div>
-        <p class="stat-description">All recorded transactions</p>
+        <div class="stat-value" id="overall-spending">${formatCurrency(analytics.overallSpending)}</div>
+        <p class="stat-description">All-time expenses</p>
       </article>
 
       <article class="stat-card">
@@ -153,6 +188,70 @@ export function renderDashboardPage(analytics, expenses) {
         <div class="stat-value" id="active-day-avg">${formatCurrency(analytics.activeDayAverage)}</div>
         <p class="stat-description">${analytics.activeDays} days with expenses</p>
       </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Transactions</span>
+          <div class="stat-icon">≡</div>
+        </div>
+        <div class="stat-value" id="transaction-count">${analytics.allTimeTransactionCount}</div>
+        <p class="stat-description">All recorded transactions</p>
+      </article>
+    </section>
+
+    <!-- Monthly Budget Tracker Banner Widget on Dashboard -->
+    <section class="dashboard-budget-widget">
+      <div class="dash-budget-top">
+        <div class="dash-budget-title">
+          <span style="font-size: 20px;">🎯</span>
+          <div>
+            <h3>Monthly Budget Tracker (${formatMonthLabel(analytics.selectedMonth)})</h3>
+            <span style="font-size: 11px; color: var(--text-secondary);">
+              ${hasBudget ? `${budgetPct}% used` : "No spending limit configured"}
+            </span>
+          </div>
+        </div>
+
+        <div class="dash-budget-actions">
+          <button class="small-action" data-action="set-budget">
+            ${hasBudget ? "Update Budget" : "+ Add Budget"}
+          </button>
+          <button class="small-action" data-page="budgets">
+            View Budget Page
+          </button>
+        </div>
+      </div>
+
+      ${hasBudget ? `
+        <div class="budget-progress-bar-container" style="margin-top: 6px;">
+          <div class="budget-progress-bar ${isOverBudget ? 'progress-danger' : (budgetPct >= 80 ? 'progress-warning' : 'progress-normal')}"
+               style="width: ${Math.min(budgetPct, 100)}%;"></div>
+        </div>
+
+        <div class="dash-budget-numbers">
+          <div class="dash-budget-item">
+            <span>Allocated Budget</span>
+            <strong>${formatCurrency(budgetAmount)}</strong>
+          </div>
+          <div class="dash-budget-item">
+            <span>Spent So Far</span>
+            <strong>${formatCurrency(analytics.monthlySpending)}</strong>
+          </div>
+          <div class="dash-budget-item">
+            <span>${isOverBudget ? "Over Budget Deficit" : "Remaining to Spend"}</span>
+            <strong class="${isOverBudget ? 'amount-danger' : 'amount-safe'}">
+              ${isOverBudget ? `- ${formatCurrency(Math.abs(remainingAmount))}` : formatCurrency(remainingAmount)}
+            </strong>
+          </div>
+        </div>
+      ` : `
+        <div style="font-size: 12px; color: var(--text-secondary); padding: 8px 0;">
+          💡 Set a budget for this month to monitor your remaining funds and prevent overspending.
+          <button class="small-action" data-action="set-budget" style="margin-left: 8px; font-weight: 700; color: var(--primary);">
+            + Set Now
+          </button>
+        </div>
+      `}
     </section>
 
     <section class="dashboard-section">
@@ -279,6 +378,14 @@ export function renderDashboardPage(analytics, expenses) {
         <button class="quick-action-btn" data-add-expense="quick">
           <span class="action-icon">+</span>
           <span>Add Expense</span>
+        </button>
+        <button class="quick-action-btn" data-action="set-budget">
+          <span class="action-icon">🎯</span>
+          <span>Set Budget</span>
+        </button>
+        <button class="quick-action-btn" data-page="budgets">
+          <span class="action-icon">👛</span>
+          <span>Budgets</span>
         </button>
         <button class="quick-action-btn" data-page="analytics">
           <span class="action-icon">📊</span>
