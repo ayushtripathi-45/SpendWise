@@ -243,7 +243,7 @@ Version 1.0.0 focuses on the essential expense-tracking workflow.
 The following pages/features are not included in the current version:
 
 - [ ] **Categories:** Custom category creation and management.
-- [ ] **Budget:** Monthly budgets, spending limits, and budget tracking.
+- [x] **Budget:** Monthly budgets, spending limits, and budget tracking.
 - [ ] **Account:** Dedicated account and profile management.
 
 These may be considered for future versions depending on my personal requirements.
