@@ -104,9 +104,11 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
   const remainingAmount = budgetStatus?.remaining;
   const isOverBudget = Boolean(budgetStatus?.isOverBudget);
   const budgetPct = budgetStatus?.percentage || 0;
+  const incomingTotal = budgetStatus?.incomingTotal || 0;
+  const incomingItems = budgetStatus?.incomingItems || [];
 
   return `
-    <!-- Top 8 Summary Cards Grid (including Monthly Budget & Remaining Budget) -->
+    <!-- Top Summary Cards Grid (including Monthly Budget & Remaining Budget with incoming money) -->
     <section class="dashboard-grid dashboard-grid-6">
       <article class="stat-card">
         <div class="stat-top">
@@ -121,7 +123,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         </p>
       </article>
 
-      <article class="stat-card ${isOverBudget ? 'card-danger-highlight' : ''}">
+      <article class="stat-card ${isOverBudget ? 'card-danger-highlight' : (remainingAmount !== null ? 'card-safe-highlight' : '')}">
         <div class="stat-top">
           <span class="stat-label">Remaining Budget</span>
           <div class="stat-icon ${isOverBudget ? 'danger-icon' : 'safe-icon'}">
@@ -129,18 +131,31 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
           </div>
         </div>
         <div class="stat-value ${isOverBudget ? 'amount-danger' : 'amount-safe'}" id="dash-stat-remaining">
-          ${hasBudget
+          ${remainingAmount !== null
             ? (isOverBudget ? `- ${formatCurrency(Math.abs(remainingAmount))}` : formatCurrency(remainingAmount))
             : "—"
           }
         </div>
-        <p class="stat-description ${isOverBudget ? 'text-danger' : ''}">
-          ${!hasBudget
-            ? "Set a budget to track savings"
+        <p class="stat-description ${isOverBudget ? 'text-danger' : ''}" id="dash-stat-remaining-desc">
+          ${remainingAmount === null
+            ? "Set a budget or add incoming to track balance"
             : isOverBudget
               ? `Over limit by ${formatCurrency(Math.abs(remainingAmount))}`
               : `${formatCurrency(remainingAmount)} safe to spend`
           }
+        </p>
+      </article>
+
+      <article class="stat-card">
+        <div class="stat-top">
+          <span class="stat-label">Incoming Money</span>
+          <div class="stat-icon incoming-icon">💰</div>
+        </div>
+        <div class="stat-value amount-safe" id="dash-stat-incoming">
+          +${formatCurrency(incomingTotal)}
+        </div>
+        <p class="stat-description">
+          ${incomingItems.length > 0 ? `${incomingItems.length} received (added to balance)` : '<a href="#" data-action="add-incoming" style="color:var(--primary); font-weight:600;">+ Add Incoming</a>'}
         </p>
       </article>
 
@@ -182,15 +197,6 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
 
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Active Day Avg</span>
-          <div class="stat-icon">◈</div>
-        </div>
-        <div class="stat-value" id="active-day-avg">${formatCurrency(analytics.activeDayAverage)}</div>
-        <p class="stat-description">${analytics.activeDays} days with expenses</p>
-      </article>
-
-      <article class="stat-card">
-        <div class="stat-top">
           <span class="stat-label">Transactions</span>
           <div class="stat-icon">≡</div>
         </div>
@@ -205,14 +211,18 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         <div class="dash-budget-title">
           <span style="font-size: 20px;">🎯</span>
           <div>
-            <h3>Monthly Budget Tracker (${formatMonthLabel(analytics.selectedMonth)})</h3>
+            <h3>Monthly Budget & Incoming Tracker (${formatMonthLabel(analytics.selectedMonth)})</h3>
             <span style="font-size: 11px; color: var(--text-secondary);">
               ${hasBudget ? `${budgetPct}% used` : "No spending limit configured"}
+              ${incomingTotal > 0 ? ` · +${formatCurrency(incomingTotal)} incoming returned` : ""}
             </span>
           </div>
         </div>
 
         <div class="dash-budget-actions">
+          <button class="small-action incoming-action-btn" data-action="add-incoming">
+            + Incoming Money
+          </button>
           <button class="small-action" data-action="set-budget">
             ${hasBudget ? "Update Budget" : "+ Add Budget"}
           </button>
@@ -222,7 +232,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         </div>
       </div>
 
-      ${hasBudget ? `
+      ${hasBudget || incomingTotal > 0 ? `
         <div class="budget-progress-bar-container" style="margin-top: 6px;">
           <div class="budget-progress-bar ${isOverBudget ? 'progress-danger' : (budgetPct >= 80 ? 'progress-warning' : 'progress-normal')}"
                style="width: ${Math.min(budgetPct, 100)}%;"></div>
@@ -230,29 +240,69 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
 
         <div class="dash-budget-numbers">
           <div class="dash-budget-item">
-            <span>Allocated Budget</span>
-            <strong>${formatCurrency(budgetAmount)}</strong>
+            <span>Allocated Monthly Budget</span>
+            <strong>${hasBudget ? formatCurrency(budgetAmount) : "Not Set"}</strong>
           </div>
           <div class="dash-budget-item">
             <span>Spent So Far</span>
             <strong>${formatCurrency(analytics.monthlySpending)}</strong>
           </div>
           <div class="dash-budget-item">
+            <span>Incoming Money (Received)</span>
+            <strong class="amount-safe">+${formatCurrency(incomingTotal)}</strong>
+          </div>
+          <div class="dash-budget-item">
             <span>${isOverBudget ? "Over Budget Deficit" : "Remaining to Spend"}</span>
             <strong class="${isOverBudget ? 'amount-danger' : 'amount-safe'}">
-              ${isOverBudget ? `- ${formatCurrency(Math.abs(remainingAmount))}` : formatCurrency(remainingAmount)}
+              ${remainingAmount !== null ? (isOverBudget ? `- ${formatCurrency(Math.abs(remainingAmount))}` : formatCurrency(remainingAmount)) : "—"}
             </strong>
           </div>
         </div>
       ` : `
-        <div style="font-size: 12px; color: var(--text-secondary); padding: 8px 0;">
-          💡 Set a budget for this month to monitor your remaining funds and prevent overspending.
-          <button class="small-action" data-action="set-budget" style="margin-left: 8px; font-weight: 700; color: var(--primary);">
-            + Set Now
-          </button>
+        <div style="font-size: 12px; color: var(--text-secondary); padding: 8px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <span>💡 Set a budget or add incoming returned money to monitor your live remaining funds.</span>
+          <div style="display:flex; gap:8px;">
+            <button class="small-action" data-action="add-incoming" style="font-weight: 700; color: #10B981;">
+              + Add Incoming
+            </button>
+            <button class="small-action" data-action="set-budget" style="font-weight: 700; color: var(--primary);">
+              + Set Budget
+            </button>
+          </div>
         </div>
       `}
     </section>
+
+    <!-- Recent Incoming Money Stream Widget (if any incoming recorded this month) -->
+    ${incomingItems.length > 0 ? `
+      <section class="dashboard-section" style="margin-top: 20px;">
+        <div class="section-heading">
+          <div>
+            <h2>Incoming Money (${formatMonthLabel(analytics.selectedMonth)})</h2>
+            <p>Money returned from friends or extra allowance automatically credited to remaining budget</p>
+          </div>
+          <button class="small-action" data-action="add-incoming">
+            + Add Incoming
+          </button>
+        </div>
+
+        <div class="incoming-list">
+          ${incomingItems.slice(0, 4).map(item => `
+            <div class="incoming-item">
+              <div class="incoming-icon-box">💰</div>
+              <div class="incoming-info">
+                <strong>${escapeHTML(item.fromPerson)}</strong>
+                <span>${escapeHTML(item.reason)}</span>
+                <small>${formatDate(item.date)}</small>
+              </div>
+              <strong class="incoming-amount amount-safe">
+                +${formatCurrency(item.amount)}
+              </strong>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    ` : ''}
 
     <section class="dashboard-section">
       <div class="section-heading">
@@ -379,6 +429,10 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
           <span class="action-icon">+</span>
           <span>Add Expense</span>
         </button>
+        <button class="quick-action-btn" data-action="add-incoming">
+          <span class="action-icon">💰</span>
+          <span>Add Incoming</span>
+        </button>
         <button class="quick-action-btn" data-action="set-budget">
           <span class="action-icon">🎯</span>
           <span>Set Budget</span>
@@ -394,10 +448,6 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         <button class="quick-action-btn" data-page="transactions">
           <span class="action-icon">📋</span>
           <span>Transactions</span>
-        </button>
-        <button class="quick-action-btn" data-page="backup">
-          <span class="action-icon">💾</span>
-          <span>Backup</span>
         </button>
       </div>
     </section>

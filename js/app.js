@@ -32,6 +32,11 @@ import {
 } from "./components/budget-modal.js";
 
 import {
+  renderIncomingMoneyModal,
+  initIncomingMoneyModal
+} from "./components/incoming-modal.js";
+
+import {
   createExpense,
   editExpense,
   removeExpense,
@@ -45,6 +50,13 @@ import {
   fetchBudget,
   getMonthlyBudgetStatus
 } from "./modules/budget-manager.js";
+
+import {
+  createIncomingMoney,
+  editIncomingMoney,
+  removeIncomingMoney,
+  fetchMonthlyIncomingMoney
+} from "./modules/incoming-money.js";
 
 import { renderBudgetsPage, initBudgetsPage } from "./pages/budgets.js";
 import { renderTransactions } from "./pages/transactions.js";
@@ -68,8 +80,8 @@ const pages = {
     subtitle: "Understand your spending patterns."
   },
   budgets: {
-    title: "Budgets",
-    subtitle: "Manage your monthly spending limits and track remaining balance."
+    title: "Budgets & Income",
+    subtitle: "Manage monthly limits, incoming returned money, and live balance."
   },
   backup: {
     title: "Backup & Restore",
@@ -96,6 +108,10 @@ let modalMode = "quick";
 let budgetModalOpen = false;
 let budgetModalData = null;
 let budgetModalSelectedMonth = getCurrentMonth();
+
+let incomingModalOpen = false;
+let incomingModalData = null;
+let incomingModalDefaultDate = "";
 
 function showToast(message) {
   let toast = document.querySelector(".app-toast");
@@ -183,17 +199,31 @@ async function updateDashboard() {
     el("#dash-stat-budget").textContent = budgetStatus.hasBudget ? formatCurrency(budgetStatus.budget) : "Not Set";
   }
 
+  if (el("#dash-stat-incoming")) {
+    el("#dash-stat-incoming").textContent = `+${formatCurrency(budgetStatus.incomingTotal || 0)}`;
+  }
+
   if (el("#dash-stat-remaining")) {
     const remEl = el("#dash-stat-remaining");
-    if (!budgetStatus.hasBudget) {
+    const descEl = el("#dash-stat-remaining-desc");
+    if (budgetStatus.remaining === null) {
       remEl.textContent = "—";
       remEl.className = "stat-value";
+      if (descEl) descEl.textContent = "Set a budget or add incoming to track balance";
     } else if (budgetStatus.isOverBudget) {
       remEl.textContent = `- ${formatCurrency(Math.abs(budgetStatus.remaining))}`;
       remEl.className = "stat-value amount-danger";
+      if (descEl) {
+        descEl.textContent = `Over limit by ${formatCurrency(Math.abs(budgetStatus.remaining))}`;
+        descEl.className = "stat-description text-danger";
+      }
     } else {
       remEl.textContent = formatCurrency(budgetStatus.remaining);
       remEl.className = "stat-value amount-safe";
+      if (descEl) {
+        descEl.textContent = `${formatCurrency(budgetStatus.remaining)} safe to spend`;
+        descEl.className = "stat-description";
+      }
     }
   }
 
@@ -226,6 +256,19 @@ function closeBudgetModal() {
   renderApp();
 }
 
+function openIncomingModal(defaultDate = "", incomingData = null) {
+  incomingModalOpen = true;
+  incomingModalDefaultDate = defaultDate;
+  incomingModalData = incomingData;
+  renderApp();
+}
+
+function closeIncomingModal() {
+  incomingModalOpen = false;
+  incomingModalData = null;
+  renderApp();
+}
+
 async function handleExpenseSave(id, data) {
   if (id) {
     await editExpense(id, data);
@@ -245,6 +288,20 @@ async function handleBudgetSave({ month, amount, notes }) {
   showToast(`Budget for ${month} saved successfully.`);
   budgetModalOpen = false;
   budgetModalData = null;
+  await renderApp();
+}
+
+async function handleIncomingSave(id, data) {
+  if (id) {
+    await editIncomingMoney(id, data);
+    showToast("Incoming money record updated.");
+  } else {
+    await createIncomingMoney(data);
+    showToast(`₹${data.amount} received from ${data.fromPerson} added to remaining budget!`);
+  }
+
+  incomingModalOpen = false;
+  incomingModalData = null;
   await renderApp();
 }
 
@@ -270,6 +327,12 @@ function initNavigation() {
       const currentMonth = getCurrentMonth();
       const existing = await fetchBudget(currentMonth);
       openBudgetModal(currentMonth, existing);
+    });
+  });
+
+  document.querySelectorAll('[data-action="add-incoming"]').forEach(button => {
+    button.addEventListener("click", () => {
+      openIncomingModal();
     });
   });
 
@@ -338,6 +401,9 @@ async function renderApp() {
           </div>
 
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="small-action" data-action="add-incoming" style="font-weight: 700; padding: 10px 14px; color: #10B981; border-color: rgba(16, 185, 129, 0.4);">
+              💰 + Incoming
+            </button>
             <button class="small-action" data-action="set-budget" style="font-weight: 700; padding: 10px 14px;">
               🎯 Set Budget
             </button>
@@ -359,6 +425,7 @@ async function renderApp() {
 
     ${modalOpen ? renderExpenseModal(modalExpense, modalMode) : ""}
     ${budgetModalOpen ? renderBudgetModal(budgetModalData, budgetModalSelectedMonth) : ""}
+    ${incomingModalOpen ? renderIncomingMoneyModal(incomingModalData, incomingModalDefaultDate) : ""}
   `;
 
   initNavbar();
@@ -387,6 +454,14 @@ async function renderApp() {
         showToast(`Budget for ${month} removed.`);
         await renderApp();
       },
+      onOpenIncomingModal: (defaultDate, data = null) => {
+        openIncomingModal(defaultDate, data);
+      },
+      onDeleteIncoming: async (id) => {
+        await removeIncomingMoney(id);
+        showToast("Incoming money record deleted.");
+        await renderApp();
+      },
       showToast
     });
   }
@@ -402,6 +477,13 @@ async function renderApp() {
     initBudgetModal({
       onSave: handleBudgetSave,
       onClose: closeBudgetModal
+    });
+  }
+
+  if (incomingModalOpen) {
+    initIncomingMoneyModal({
+      onSave: handleIncomingSave,
+      onClose: closeIncomingModal
     });
   }
 

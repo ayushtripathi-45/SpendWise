@@ -6,6 +6,10 @@ import {
   removeBudget
 } from "../database/db.js";
 import { getCurrentMonth } from "./analytics.js";
+import {
+  fetchMonthlyIncomingMoney,
+  fetchAllIncomingMoney
+} from "./incoming-money.js";
 
 /**
  * Validates budget inputs.
@@ -84,7 +88,9 @@ export async function fetchAllBudgets() {
 }
 
 /**
- * Calculate budget status for a given month considering expenses.
+ * Calculate budget status for a given month considering expenses and incoming money.
+ * If user set budget = 5000, spent = 2000, incoming = 500
+ * Remaining = 5000 - 2000 + 500 = 3500!
  * @param {Array} expenses
  * @param {string} month YYYY-MM
  */
@@ -93,17 +99,28 @@ export async function getMonthlyBudgetStatus(expenses, month = getCurrentMonth()
   const monthExpenses = (expenses || []).filter(e => e.date && e.date.startsWith(month));
   const spent = monthExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
 
+  const incomingItems = await fetchMonthlyIncomingMoney(month);
+  const incomingTotal = incomingItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
   const budgetAmount = budget ? Number(budget.amount || 0) : 0;
-  const remaining = budget ? budgetAmount - spent : null;
-  const percentage = budgetAmount > 0 ? Math.min(Math.round((spent / budgetAmount) * 100), 999) : 0;
+  // If budget is set, Remaining = Budget - Spent + Incoming
+  // If budget not set, Remaining = null (or Incoming - Spent)
+  const remaining = budget ? (budgetAmount - spent + incomingTotal) : (incomingTotal > 0 ? (incomingTotal - spent) : null);
+  const isOverBudget = remaining !== null && remaining < 0;
+
+  // Percentage spent of (budget + incoming) or budget
+  const effectiveBudget = budgetAmount > 0 ? (budgetAmount + incomingTotal) : incomingTotal;
+  const percentage = effectiveBudget > 0 ? Math.min(Math.round((spent / effectiveBudget) * 100), 999) : 0;
 
   return {
     month,
     hasBudget: Boolean(budget),
     budget: budgetAmount,
     spent,
-    remaining, // Can be positive (under) or negative (overbudget)
-    isOverBudget: remaining !== null && remaining < 0,
+    incomingTotal,
+    incomingItems,
+    remaining,
+    isOverBudget,
     percentage,
     notes: budget?.notes || "",
     updatedAt: budget?.updatedAt || null
@@ -111,18 +128,24 @@ export async function getMonthlyBudgetStatus(expenses, month = getCurrentMonth()
 }
 
 /**
- * Calculate budget overview for all recorded months (from both budgets and expenses).
+ * Calculate budget overview for all recorded months (from budgets, expenses, and incoming money).
  * @param {Array} expenses
  */
 export async function getAllMonthsBudgetOverview(expenses) {
   const budgets = await fetchAllBudgets();
+  const allIncoming = await fetchAllIncomingMoney();
   const budgetMap = new Map(budgets.map(b => [b.month, b]));
 
-  // Find all distinct months from expenses + budgets
+  // Find all distinct months from expenses + budgets + incoming
   const monthsSet = new Set(budgets.map(b => b.month));
   (expenses || []).forEach(e => {
     if (e.date && e.date.length >= 7) {
       monthsSet.add(e.date.slice(0, 7));
+    }
+  });
+  allIncoming.forEach(item => {
+    if (item.date && item.date.length >= 7) {
+      monthsSet.add(item.date.slice(0, 7));
     }
   });
 
@@ -135,15 +158,25 @@ export async function getAllMonthsBudgetOverview(expenses) {
     const budgetRecord = budgetMap.get(month);
     const monthExpenses = (expenses || []).filter(e => e.date && e.date.startsWith(month));
     const spent = monthExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+    const monthIncoming = allIncoming.filter(item => item.date && item.date.startsWith(month));
+    const incomingTotal = monthIncoming.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
     const budgetAmount = budgetRecord ? Number(budgetRecord.amount || 0) : 0;
-    const remaining = budgetRecord ? budgetAmount - spent : null;
-    const percentage = budgetAmount > 0 ? Math.round((spent / budgetAmount) * 100) : 0;
+    const remaining = budgetRecord
+      ? (budgetAmount - spent + incomingTotal)
+      : (incomingTotal > 0 ? (incomingTotal - spent) : null);
+
+    const effectiveBudget = budgetAmount > 0 ? (budgetAmount + incomingTotal) : incomingTotal;
+    const percentage = effectiveBudget > 0 ? Math.round((spent / effectiveBudget) * 100) : 0;
 
     return {
       month,
       hasBudget: Boolean(budgetRecord),
       budget: budgetAmount,
       spent,
+      incomingTotal,
+      incomingCount: monthIncoming.length,
       remaining,
       isOverBudget: remaining !== null && remaining < 0,
       percentage,

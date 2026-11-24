@@ -2,7 +2,7 @@
 import { openDB } from "idb";
 
 const DB_NAME = "expense-tracker-db";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise;
 
@@ -26,6 +26,14 @@ export function getDB() {
             keyPath: "month"
           });
           budgetStore.createIndex("updatedAt", "updatedAt");
+        }
+
+        if (!db.objectStoreNames.contains("incoming_money")) {
+          const incomingStore = db.createObjectStore("incoming_money", {
+            keyPath: "id"
+          });
+          incomingStore.createIndex("date", "date");
+          incomingStore.createIndex("createdAt", "createdAt");
         }
       }
     });
@@ -130,4 +138,36 @@ export async function removeBudget(month) {
 export async function clearBudgets() {
   const db = await getDB();
   return db.clear("budgets");
+}
+
+/* ================= Incoming Money Database Operations ================= */
+
+export async function getAllIncomingMoney() {
+  const db = await getDB();
+  return db.getAll("incoming_money");
+}
+
+export async function getIncomingMoneyItem(id) {
+  const db = await getDB();
+  return db.get("incoming_money", id);
+}
+
+export async function addIncomingMoney(item) {
+  const db = await getDB();
+  return db.add("incoming_money", item);
+}
+
+export async function updateIncomingMoney(item) {
+  const db = await getDB();
+  return db.put("incoming_money", item);
+}
+
+export async function deleteIncomingMoney(id) {
+  const db = await getDB();
+  return db.delete("incoming_money", id);
+}
+
+export async function clearIncomingMoney() {
+  const db = await getDB();
+  return db.clear("incoming_money");
 }
