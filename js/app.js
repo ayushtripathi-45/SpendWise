@@ -37,6 +37,11 @@ import {
 } from "./components/incoming-modal.js";
 
 import {
+  renderCashModal,
+  initCashModal
+} from "./components/cash-modal.js";
+
+import {
   createExpense,
   editExpense,
   removeExpense,
@@ -58,7 +63,16 @@ import {
   fetchMonthlyIncomingMoney
 } from "./modules/incoming-money.js";
 
+import {
+  createCashTransaction,
+  editCashTransaction,
+  removeCashTransaction,
+  getCashSummary,
+  fetchAllCashTransactions
+} from "./modules/cash-manager.js";
+
 import { renderBudgetsPage, initBudgetsPage } from "./pages/budgets.js";
+import { renderCashPage, initCashPage } from "./pages/cash.js";
 import { renderTransactions } from "./pages/transactions.js";
 
 import { formatCurrency } from "./utils/currency.js";
@@ -69,18 +83,22 @@ import { renderSettingsPage, initSettingsPage } from "./pages/settings.js";
 const pages = {
   dashboard: {
     title: "Dashboard",
-    subtitle: "Here's an overview of your expenses and budget."
+    subtitle: "Overview of your online expenses, budgets, and cash in hand."
   },
   transactions: {
     title: "Transactions",
-    subtitle: "Manage all your expense records."
+    subtitle: "Manage all your online expense records."
+  },
+  cash: {
+    title: "Cash Money",
+    subtitle: "Manage your physical in-hand cash, cash expenses, and remaining balance."
   },
   analytics: {
     title: "Analytics",
     subtitle: "Understand your spending patterns."
   },
   budgets: {
-    title: "Budgets & Income",
+    title: "Budgets",
     subtitle: "Manage monthly limits, incoming returned money, and live balance."
   },
   backup: {
@@ -113,6 +131,10 @@ let incomingModalOpen = false;
 let incomingModalData = null;
 let incomingModalDefaultDate = "";
 
+let cashModalOpen = false;
+let cashModalData = null;
+let cashModalDefaultType = "cash-out";
+
 function showToast(message) {
   let toast = document.querySelector(".app-toast");
 
@@ -137,7 +159,8 @@ async function renderDashboard() {
   const expenses = await fetchExpenses();
   const analytics = calculateAnalytics(expenses, getCurrentMonth());
   const budgetStatus = await getMonthlyBudgetStatus(expenses, getCurrentMonth());
-  return renderDashboardPage(analytics, expenses, budgetStatus);
+  const cashSummary = await getCashSummary();
+  return renderDashboardPage(analytics, expenses, budgetStatus, cashSummary);
 }
 
 async function renderPageContent() {
@@ -147,6 +170,10 @@ async function renderPageContent() {
 
   if (activePage === "transactions") {
     return await renderTransactions();
+  }
+
+  if (activePage === "cash") {
+    return await renderCashPage();
   }
 
   if (activePage === "analytics") {
@@ -185,6 +212,7 @@ async function updateDashboard() {
   const currentMonth = getCurrentMonth();
   const analytics = calculateAnalytics(expenses, currentMonth);
   const budgetStatus = await getMonthlyBudgetStatus(expenses, currentMonth);
+  const cashSummary = await getCashSummary();
 
   const el = (id) => document.querySelector(id);
 
@@ -225,6 +253,12 @@ async function updateDashboard() {
         descEl.className = "stat-description";
       }
     }
+  }
+
+  if (el("#dash-stat-cash-remaining")) {
+    const rem = cashSummary.remainingCash;
+    el("#dash-stat-cash-remaining").textContent = rem < 0 ? `- ${formatCurrency(Math.abs(rem))}` : formatCurrency(rem);
+    el("#dash-stat-cash-remaining").className = rem < 0 ? "stat-value amount-danger" : "stat-value amount-safe";
   }
 
   initDashboardCharts(analytics);
@@ -269,6 +303,19 @@ function closeIncomingModal() {
   renderApp();
 }
 
+function openCashModal(cashData = null, defaultType = "cash-out") {
+  cashModalOpen = true;
+  cashModalData = cashData;
+  cashModalDefaultType = defaultType;
+  renderApp();
+}
+
+function closeCashModal() {
+  cashModalOpen = false;
+  cashModalData = null;
+  renderApp();
+}
+
 async function handleExpenseSave(id, data) {
   if (id) {
     await editExpense(id, data);
@@ -305,6 +352,24 @@ async function handleIncomingSave(id, data) {
   await renderApp();
 }
 
+async function handleCashSave(id, data) {
+  if (id) {
+    await editCashTransaction(id, data);
+    showToast("Cash transaction updated.");
+  } else {
+    await createCashTransaction(data);
+    if (data.type === "cash-in") {
+      showToast(`₹${data.amount} cash added to in-hand wallet.`);
+    } else {
+      showToast(`₹${data.amount} cash expense recorded.`);
+    }
+  }
+
+  cashModalOpen = false;
+  cashModalData = null;
+  await renderApp();
+}
+
 function initNavigation() {
   document.querySelectorAll("[data-page]").forEach(button => {
     button.addEventListener("click", () => {
@@ -333,6 +398,24 @@ function initNavigation() {
   document.querySelectorAll('[data-action="add-incoming"]').forEach(button => {
     button.addEventListener("click", () => {
       openIncomingModal();
+    });
+  });
+
+  document.querySelectorAll('[data-action="add-cash"]').forEach(button => {
+    button.addEventListener("click", () => {
+      openCashModal(null, "cash-in");
+    });
+  });
+
+  document.querySelectorAll('[data-action="add-cash-in"]').forEach(button => {
+    button.addEventListener("click", () => {
+      openCashModal(null, "cash-in");
+    });
+  });
+
+  document.querySelectorAll('[data-action="add-cash-out"]').forEach(button => {
+    button.addEventListener("click", () => {
+      openCashModal(null, "cash-out");
     });
   });
 
@@ -400,15 +483,15 @@ async function renderApp() {
             <p>${page.subtitle}</p>
           </div>
 
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <button class="small-action" data-action="add-incoming" style="font-weight: 700; padding: 10px 14px; color: #10B981; border-color: rgba(16, 185, 129, 0.4);">
-              💰 + Incoming
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="small-action" data-action="add-cash-out" style="font-weight: 700; padding: 10px 14px; color: #EF4444; border-color: rgba(239, 68, 68, 0.4);">
+              💸 Spend Cash
             </button>
-            <button class="small-action" data-action="set-budget" style="font-weight: 700; padding: 10px 14px;">
-              🎯 Set Budget
+            <button class="small-action" data-action="add-cash-in" style="font-weight: 700; padding: 10px 14px; color: #10B981; border-color: rgba(16, 185, 129, 0.4);">
+              💵 Add Cash
             </button>
             <button class="primary-button" data-add-expense="quick">
-              + Add Expense
+              + Online Expense
             </button>
           </div>
         </header>
@@ -426,6 +509,7 @@ async function renderApp() {
     ${modalOpen ? renderExpenseModal(modalExpense, modalMode) : ""}
     ${budgetModalOpen ? renderBudgetModal(budgetModalData, budgetModalSelectedMonth) : ""}
     ${incomingModalOpen ? renderIncomingMoneyModal(incomingModalData, incomingModalDefaultDate) : ""}
+    ${cashModalOpen ? renderCashModal(cashModalData, cashModalDefaultType) : ""}
   `;
 
   initNavbar();
@@ -466,6 +550,20 @@ async function renderApp() {
     });
   }
 
+  if (activePage === "cash") {
+    initCashPage({
+      onOpenCashModal: (data = null, type = "cash-out") => {
+        openCashModal(data, type);
+      },
+      onDeleteCash: async (id) => {
+        await removeCashTransaction(id);
+        showToast("Cash transaction deleted.");
+        await renderApp();
+      },
+      showToast
+    });
+  }
+
   if (modalOpen) {
     initExpenseModal({
       onSave: handleExpenseSave,
@@ -484,6 +582,13 @@ async function renderApp() {
     initIncomingMoneyModal({
       onSave: handleIncomingSave,
       onClose: closeIncomingModal
+    });
+  }
+
+  if (cashModalOpen) {
+    initCashModal({
+      onSave: handleCashSave,
+      onClose: closeCashModal
     });
   }
 

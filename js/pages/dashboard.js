@@ -91,7 +91,7 @@ const commonOptions = {
   }
 };
 
-export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
+export function renderDashboardPage(analytics, expenses, budgetStatus = null, cashSummary = null) {
   const recent = expenses.slice(0, 5);
 
   const highestDay = analytics.dailyBreakdown.reduce(
@@ -107,12 +107,16 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
   const incomingTotal = budgetStatus?.incomingTotal || 0;
   const incomingItems = budgetStatus?.incomingItems || [];
 
+  const remainingCash = cashSummary?.remainingCash || 0;
+  const totalCashIn = cashSummary?.totalCashIn || 0;
+  const totalCashOut = cashSummary?.totalCashOut || 0;
+
   return `
-    <!-- Top Summary Cards Grid (including Monthly Budget & Remaining Budget with incoming money) -->
+    <!-- Top Summary Cards Grid (Online Budget & Remaining, Cash Wallet, Spending) -->
     <section class="dashboard-grid dashboard-grid-6">
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Monthly Budget</span>
+          <span class="stat-label">Online Budget</span>
           <div class="stat-icon budget-icon">🎯</div>
         </div>
         <div class="stat-value" id="dash-stat-budget">
@@ -125,7 +129,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
 
       <article class="stat-card ${isOverBudget ? 'card-danger-highlight' : (remainingAmount !== null ? 'card-safe-highlight' : '')}">
         <div class="stat-top">
-          <span class="stat-label">Remaining Budget</span>
+          <span class="stat-label">Remaining Online Budget</span>
           <div class="stat-icon ${isOverBudget ? 'danger-icon' : 'safe-icon'}">
             ${isOverBudget ? "⚠️" : "🛡️"}
           </div>
@@ -138,7 +142,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         </div>
         <p class="stat-description ${isOverBudget ? 'text-danger' : ''}" id="dash-stat-remaining-desc">
           ${remainingAmount === null
-            ? "Set a budget or add incoming to track balance"
+            ? "Set a budget to track online balance"
             : isOverBudget
               ? `Over limit by ${formatCurrency(Math.abs(remainingAmount))}`
               : `${formatCurrency(remainingAmount)} safe to spend`
@@ -146,22 +150,36 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         </p>
       </article>
 
+      <!-- Cash in Hand Wallet Card -->
+      <article class="stat-card ${remainingCash < 0 ? 'card-danger-highlight' : 'card-safe-highlight'}">
+        <div class="stat-top">
+          <span class="stat-label">Remaining Cash (In Hand)</span>
+          <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: #10B981;">👛</div>
+        </div>
+        <div class="stat-value ${remainingCash < 0 ? 'amount-danger' : 'amount-safe'}" id="dash-stat-cash-remaining">
+          ${remainingCash < 0 ? `- ${formatCurrency(Math.abs(remainingCash))}` : formatCurrency(remainingCash)}
+        </div>
+        <p class="stat-description">
+          ${totalCashIn > 0 ? `Total: ${formatCurrency(totalCashIn)} · Spent: ${formatCurrency(totalCashOut)}` : '<a href="#" data-action="add-cash" style="color:#10B981; font-weight:600;">+ Add Cash</a>'}
+        </p>
+      </article>
+
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Incoming Money</span>
+          <span class="stat-label">Incoming Online Money</span>
           <div class="stat-icon incoming-icon">💰</div>
         </div>
         <div class="stat-value amount-safe" id="dash-stat-incoming">
           +${formatCurrency(incomingTotal)}
         </div>
         <p class="stat-description">
-          ${incomingItems.length > 0 ? `${incomingItems.length} received (added to balance)` : '<a href="#" data-action="add-incoming" style="color:var(--primary); font-weight:600;">+ Add Incoming</a>'}
+          ${incomingItems.length > 0 ? `${incomingItems.length} returned (added to online balance)` : '<a href="#" data-action="add-incoming" style="color:var(--primary); font-weight:600;">+ Add Incoming</a>'}
         </p>
       </article>
 
       <article class="stat-card">
         <div class="stat-top">
-          <span class="stat-label">Monthly Spending</span>
+          <span class="stat-label">Monthly Spending (Online)</span>
           <div class="stat-icon">◷</div>
         </div>
         <div class="stat-value" id="monthly-spending">${formatCurrency(analytics.monthlySpending)}</div>
@@ -183,7 +201,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
           <div class="stat-icon">₹</div>
         </div>
         <div class="stat-value" id="overall-spending">${formatCurrency(analytics.overallSpending)}</div>
-        <p class="stat-description">All-time expenses</p>
+        <p class="stat-description">All-time online expenses</p>
       </article>
 
       <article class="stat-card">
@@ -194,15 +212,50 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         <div class="stat-value" id="daily-average">${formatCurrency(analytics.calendarDailyAverage)}</div>
         <p class="stat-description">Calendar day average</p>
       </article>
+    </section>
 
-      <article class="stat-card">
-        <div class="stat-top">
-          <span class="stat-label">Transactions</span>
-          <div class="stat-icon">≡</div>
+    <!-- Cash In Hand Quick Tracker Widget on Dashboard -->
+    <section class="dashboard-cash-widget">
+      <div class="dash-cash-top">
+        <div class="dash-cash-title">
+          <span style="font-size: 20px;">💵</span>
+          <div>
+            <h3>Cash Money Wallet</h3>
+            <span style="font-size: 11px; color: var(--text-secondary);">
+              Separate cash tracking: physical cash in hand vs cash expenses
+            </span>
+          </div>
         </div>
-        <div class="stat-value" id="transaction-count">${analytics.allTimeTransactionCount}</div>
-        <p class="stat-description">All recorded transactions</p>
-      </article>
+
+        <div class="dash-budget-actions">
+          <button class="small-action incoming-action-btn" data-action="add-cash-in">
+            + Add Cash / ATM
+          </button>
+          <button class="small-action delete-action" data-action="add-cash-out">
+            - Spend Cash
+          </button>
+          <button class="small-action" data-page="cash">
+            View Cash Page
+          </button>
+        </div>
+      </div>
+
+      <div class="dash-cash-numbers">
+        <div class="dash-cash-item">
+          <span>Total Cash In-Hand (Added)</span>
+          <strong class="amount-safe">${formatCurrency(totalCashIn)}</strong>
+        </div>
+        <div class="dash-cash-item">
+          <span>Total Cash Spent</span>
+          <strong class="amount-danger">${formatCurrency(totalCashOut)}</strong>
+        </div>
+        <div class="dash-cash-item">
+          <span>Remaining Cash in Pocket</span>
+          <strong class="${remainingCash < 0 ? 'amount-danger' : 'amount-safe'}">
+            ${remainingCash < 0 ? `- ${formatCurrency(Math.abs(remainingCash))}` : formatCurrency(remainingCash)}
+          </strong>
+        </div>
+      </div>
     </section>
 
     <!-- Monthly Budget Tracker Banner Widget on Dashboard -->
@@ -211,7 +264,7 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
         <div class="dash-budget-title">
           <span style="font-size: 20px;">🎯</span>
           <div>
-            <h3>Monthly Budget & Incoming Tracker (${formatMonthLabel(analytics.selectedMonth)})</h3>
+            <h3>Online Budget & Incoming Tracker (${formatMonthLabel(analytics.selectedMonth)})</h3>
             <span style="font-size: 11px; color: var(--text-secondary);">
               ${hasBudget ? `${budgetPct}% used` : "No spending limit configured"}
               ${incomingTotal > 0 ? ` · +${formatCurrency(incomingTotal)} incoming returned` : ""}
@@ -307,8 +360,8 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
     <section class="dashboard-section">
       <div class="section-heading">
         <div>
-          <h2>Spending Overview</h2>
-          <p>Your monthly expense activity</p>
+          <h2>Spending Overview (Online)</h2>
+          <p>Your monthly online expense activity</p>
         </div>
       </div>
 
@@ -381,8 +434,8 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
     <section class="dashboard-section">
       <div class="section-heading">
         <div>
-          <h2>Recent Transactions</h2>
-          <p>Your latest expense records</p>
+          <h2>Recent Transactions (Online)</h2>
+          <p>Your latest online expense records</p>
         </div>
         <button class="small-action" data-page="transactions">
           View All
@@ -427,18 +480,26 @@ export function renderDashboardPage(analytics, expenses, budgetStatus = null) {
       <div class="quick-actions-grid">
         <button class="quick-action-btn" data-add-expense="quick">
           <span class="action-icon">+</span>
-          <span>Add Expense</span>
+          <span>Online Expense</span>
+        </button>
+        <button class="quick-action-btn" data-action="add-cash-out">
+          <span class="action-icon">💸</span>
+          <span>Spend Cash</span>
+        </button>
+        <button class="quick-action-btn" data-action="add-cash-in">
+          <span class="action-icon">💵</span>
+          <span>Add Cash</span>
+        </button>
+        <button class="quick-action-btn" data-page="cash">
+          <span class="action-icon">👛</span>
+          <span>Cash Wallet</span>
         </button>
         <button class="quick-action-btn" data-action="add-incoming">
           <span class="action-icon">💰</span>
           <span>Add Incoming</span>
         </button>
-        <button class="quick-action-btn" data-action="set-budget">
-          <span class="action-icon">🎯</span>
-          <span>Set Budget</span>
-        </button>
         <button class="quick-action-btn" data-page="budgets">
-          <span class="action-icon">👛</span>
+          <span class="action-icon">🎯</span>
           <span>Budgets</span>
         </button>
         <button class="quick-action-btn" data-page="analytics">

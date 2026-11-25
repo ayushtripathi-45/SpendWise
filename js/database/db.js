@@ -2,7 +2,7 @@
 import { openDB } from "idb";
 
 const DB_NAME = "expense-tracker-db";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise;
 
@@ -34,6 +34,16 @@ export function getDB() {
           });
           incomingStore.createIndex("date", "date");
           incomingStore.createIndex("createdAt", "createdAt");
+        }
+
+        // Cash flow entries: either cash-in (deposit/wallet top-up) or cash-out (expense)
+        if (!db.objectStoreNames.contains("cash_transactions")) {
+          const cashStore = db.createObjectStore("cash_transactions", {
+            keyPath: "id"
+          });
+          cashStore.createIndex("date", "date");
+          cashStore.createIndex("type", "type");
+          cashStore.createIndex("createdAt", "createdAt");
         }
       }
     });
@@ -170,4 +180,36 @@ export async function deleteIncomingMoney(id) {
 export async function clearIncomingMoney() {
   const db = await getDB();
   return db.clear("incoming_money");
+}
+
+/* ================= Cash Transactions Operations ================= */
+
+export async function getAllCashTransactions() {
+  const db = await getDB();
+  return db.getAll("cash_transactions");
+}
+
+export async function getCashTransaction(id) {
+  const db = await getDB();
+  return db.get("cash_transactions", id);
+}
+
+export async function addCashTransaction(item) {
+  const db = await getDB();
+  return db.add("cash_transactions", item);
+}
+
+export async function updateCashTransaction(item) {
+  const db = await getDB();
+  return db.put("cash_transactions", item);
+}
+
+export async function deleteCashTransaction(id) {
+  const db = await getDB();
+  return db.delete("cash_transactions", id);
+}
+
+export async function clearCashTransactions() {
+  const db = await getDB();
+  return db.clear("cash_transactions");
 }

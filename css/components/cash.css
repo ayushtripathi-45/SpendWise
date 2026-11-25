@@ -1,0 +1,221 @@
+
+/* Cash Money Page & Dashboard Widget Styles */
+
+.cash-page {
+  width: 100%;
+  max-width: 1000px;
+}
+
+.cash-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.cash-control-bar h2 {
+  font-size: 20px;
+  font-weight: 750;
+  margin: 0;
+}
+
+.cash-control-bar p {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.cash-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cash-in-btn {
+  background: #059669;
+}
+
+.cash-in-btn:hover {
+  background: #047857;
+}
+
+.cash-out-btn {
+  background: #DC2626;
+}
+
+.cash-out-btn:hover {
+  background: #B91C1C;
+}
+
+/* Overview 3 Cards Grid */
+.cash-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.cash-metric-card {
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.cash-in-icon {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10B981;
+}
+
+.cash-out-icon {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}
+
+.cash-quick-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  gap: 16px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.cash-quick-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cash-quick-left strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.cash-quick-left p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+.cash-quick-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Badges */
+.cash-type-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-cash-in {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+}
+
+.badge-cash-out {
+  background: rgba(239, 68, 68, 0.12);
+  color: #EF4444;
+}
+
+.cash-empty-state {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.cash-empty-state h3 {
+  font-size: 16px;
+  margin: 12px 0 6px;
+  color: var(--text-primary);
+}
+
+.cash-empty-state p {
+  font-size: 13px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+/* Dashboard Cash Widget */
+.dashboard-cash-widget {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+}
+
+.dash-cash-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dash-cash-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-cash-title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.dash-cash-numbers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.dash-cash-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-cash-item span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dash-cash-item strong {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+  .cash-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .cash-quick-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dash-cash-numbers {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

@@ -2,8 +2,9 @@
 const navigationItems = [
   { id: "dashboard", label: "Dashboard", icon: "layout-dashboard" },
   { id: "transactions", label: "Transactions", icon: "receipt" },
-  { id: "analytics", label: "Analytics", icon: "chart-no-axes-combined" },
+  { id: "cash", label: "Cash Money", icon: "banknote" },
   { id: "budgets", label: "Budgets", icon: "wallet" },
+  { id: "analytics", label: "Analytics", icon: "chart-no-axes-combined" },
   { id: "categories", label: "Categories", icon: "tags" },
   { id: "settings", label: "Settings", icon: "settings" },
   { id: "backup", label: "Backup", icon: "database" }
@@ -13,6 +14,7 @@ function icon(name) {
   const icons = {
     "layout-dashboard": '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="5" rx="1"/><rect x="13" y="10" width="8" height="11" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/>',
     receipt: '<path d="M4 2h16v20l-4-2-4 2-4-2-4 2z"/><path d="M8 8h8M8 12h8M8 16h4"/>',
+    banknote: '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
     database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>',
     "chart-no-axes-combined": '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-6 6"/><path d="M17 9h2v2"/>',
     tags: '<path d="M20 13 13 20a2 2 0 0 1-3 0l-7-7V3h10l7 7a2 2 0 0 1 0 3Z"/><circle cx="7.5" cy="7.5" r=".5"/>',
@@ -74,9 +76,9 @@ export function renderMobileNav(activePage = "dashboard") {
   const mobileItems = [
     navigationItems[0], // Dashboard
     navigationItems[1], // Transactions
+    navigationItems[2], // Cash Money
     navigationItems[3], // Budgets
-    navigationItems[2], // Analytics
-    navigationItems[5]  // Settings
+    navigationItems[4]  // Analytics
   ];
 
   return `
