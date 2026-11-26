@@ -3,6 +3,7 @@
 @import "./theme.css";
 @import "./layout.css";
 
+@import "./components/splash.css";
 @import "./components/sidebar.css";
 @import "./components/navbar.css";
 @import "./components/cards.css";
